@@ -1,6 +1,6 @@
 use shmemlib;
 use std::string::String;
-// use std::mem;
+use std::mem;
 
 // pass through, will have to look at parsing "pub const" decls.
 
@@ -161,6 +161,56 @@ pub fn int_get(dest: *mut i32, src: *const i32, n: u64, pe: i32) {
 //
 // == memory management ==================================================
 //
+use std::ops::Deref;
+use std::ops::DerefMut;
+
+pub struct SymmMem<T> {
+    ptr: *mut T
+}
+impl<T> SymmMem<T> {
+    pub fn new(x:usize)->SymmMem<T>{
+        unsafe {
+            SymmMem { ptr: (shmemlib::shmem_malloc((x * mem::size_of::<T>()) as u64) as *mut T) }
+        }
+    }
+}
+impl<T> Deref for SymmMem<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        unsafe {
+            &*self.ptr
+        }
+    }
+}
+impl<T> DerefMut for SymmMem<T> {
+    fn deref_mut(&mut self) ->&mut T {
+        unsafe {
+            &mut *self.ptr
+        }
+    }
+}
+impl<T> Drop for SymmMem<T> {
+    fn drop(&mut self) {
+        unsafe {
+            shmemlib::shmem_free(self.ptr as SymmMemAddr)
+        }
+    }
+}
+
+/*pub fn box_it<T>(ptr: *mut T) -> Box<T>
+{
+    unsafe {
+        return Box::from_raw(ptr)
+    }
+}
+
+pub fn free_shmem_box<T>(box_in: Box<T>)
+{
+    unsafe {
+        shmemlib::shmem_free(Box::into_raw(box_in) as SymmMemAddr)
+    }
+}*/
 
 // so `sizeof` gives us `usize` as the amount of memory to allocate.
 // this doesn't match the type that bindgen dumped out for us, so we
